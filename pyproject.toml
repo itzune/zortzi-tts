@@ -1,0 +1,28 @@
+[project]
+name = "zortzi-tts"
+version = "0.1.0"
+description = "Basque manifest builder + text normalizer for Audio8_TTS fine-tuning"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "tqdm>=4.66",
+]
+
+[project.scripts]
+zortzi-manifest = "basque_manifest.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["basque_manifest"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
