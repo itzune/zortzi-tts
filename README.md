@@ -489,6 +489,9 @@ scripts/
   find_neutral_ref.py   scan clips for prosodically neutral references
   generate_samples.py   checkpoint audio probe generator + prosody metrics
   zortzi_callbacks.py   HF Trainer callback: probe at every on_save → wandb
+  analyze_wandb.py      pull training metrics from wandb API
+  analyze_all_prosody.py  batch prosody analysis across probe checkpoints
+  compare_prosody.py    compare prosody metrics between two probe sets
   deepspeed_zero2.json  DeepSpeed ZeRO-2 config (not in upstream repo)
   setup_env.sh          GPU server venv bootstrap
 tests/

@@ -23,7 +23,9 @@ data/*
 !data/.gitkeep
 outputs/
 prepared/
+probes/
 *.npy
+*.wav
 
 # editor / OS
 .idea/
