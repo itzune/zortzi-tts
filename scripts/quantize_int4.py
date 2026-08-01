@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 """INT4 weight-only quantization for Audio8 TTS ONNX models.
 
-Replaces MatMul nodes with MatMulNBits (bits=4, block_size=128),
-matching Audio8's official INT4 ONNX format exactly.
+Two passes:
+  1. MatMul → MatMulNBits (bits=4, block_size=128) for linear weights
+  2. Gather → GatherBlockQuantized (bits=4, block_size=32) for embedding tables
+
+This matches Audio8's official INT4 ONNX format, which quantizes both
+linear weights and embedding tables to INT4.
 
 Traces through Transpose nodes to find the weight initializer behind each
 MatMul B input. Skips attention MatMuls (Q×K^T, probs×V) which have dynamic B.
+For embeddings, targets Gather nodes whose first input is a 2D float
+initializer with 'embedding' in its name.
 
 Usage:
-    python quantize_int4.py --input slow_ar_fp32.onnx --output slow_ar_int4.onnx
+    python quantize_int4.py --input slow_ar_fp16.onnx --output slow_ar_int4.onnx
 """
 from __future__ import annotations
 
@@ -158,7 +164,110 @@ def quantize_model(input_path: str, output_path: str) -> None:
 
     print(f"Quantized {quantized_count} MatMul → MatMulNBits, skipped {skipped}", flush=True)
 
-    # Add com.microsoft opset import for MatMulNBits
+    # ── Pass 2: Quantize embedding Gather → GatherBlockQuantized ─────
+    print(f"\nQuantizing embedding Gather nodes...", flush=True)
+    init_map = {init.name: init for init in graph.initializer}
+
+    embedding_gathers = []
+    for node in graph.node:
+        if node.op_type != "Gather" or len(node.input) < 2:
+            continue
+        w_name = node.input[0]
+        if w_name not in init_map or "embedding" not in w_name.lower():
+            continue
+        init = init_map[w_name]
+        if init.data_type not in (TensorProto.FLOAT, TensorProto.FLOAT16):
+            continue
+        embedding_gathers.append(node)
+
+    print(f"  Found {len(embedding_gathers)} embedding Gather nodes", flush=True)
+
+    if embedding_gathers:
+        emb_block_size = 32
+        quantized_embeddings: dict[str, tuple[str, str, str]] = {}
+        emb_new_inits: list[TensorProto] = []
+        emb_weights_to_remove: set[str] = set()
+        emb_replacements: dict[int, object] = {}
+
+        for node in embedding_gathers:
+            w_name = node.input[0]
+            indices_name = node.input[1]
+
+            if w_name not in quantized_embeddings:
+                init = init_map[w_name]
+                w_array = numpy_helper.to_array(init, base_dir=os.path.dirname(input_path))
+                if w_array.ndim != 2:
+                    continue
+                vocab, dim = w_array.shape
+                w_tensor = torch.from_numpy(np.ascontiguousarray(w_array.astype(np.float32)))
+
+                qw_uint8, scales_f32 = CudaQuantizer.symmetric_blockwise_quantize(
+                    w_tensor, bits=4, block_size=emb_block_size, unsigned_full_range=True
+                )
+                qw_np = qw_uint8.numpy()
+                scales_np = scales_f32.numpy().astype(np.float16)
+                n_blocks = dim // emb_block_size
+
+                # INT4 Q4 tensor (data_type=21): packed bytes, 2 values per byte
+                qw_name = f"{w_name}_Q4"
+                qw_tp = TensorProto()
+                qw_tp.name = qw_name
+                qw_tp.data_type = 21  # INT4
+                qw_tp.dims.extend([vocab, dim])
+                qw_tp.raw_data = qw_np.tobytes()
+
+                # FP16 scales
+                scales_name = f"{w_name}_scales"
+                scales_tp = numpy_helper.from_array(scales_np, name=scales_name)
+
+                # INT4 zero_points (all 8 = midpoint of 0-15 for symmetric)
+                zp_name = f"{w_name}_zero_points"
+                zp_tp = TensorProto()
+                zp_tp.name = zp_name
+                zp_tp.data_type = 21  # INT4
+                zp_tp.dims.extend([vocab, n_blocks])
+                zp_packed = np.full(vocab * n_blocks // 2, 0x88, dtype=np.uint8)
+                zp_tp.raw_data = zp_packed.tobytes()
+
+                emb_new_inits.extend([qw_tp, scales_tp, zp_tp])
+                emb_weights_to_remove.add(w_name)
+                quantized_embeddings[w_name] = (qw_name, scales_name, zp_name)
+
+                orig_mb = w_array.nbytes / 1e6
+                new_mb = (qw_np.nbytes + scales_np.nbytes + zp_packed.nbytes) / 1e6
+                print(f"  {w_name}: [{vocab}, {dim}] {orig_mb:.1f}MB → {new_mb:.1f}MB", flush=True)
+
+            qw_name, scales_name, zp_name = quantized_embeddings[w_name]
+            gbq_node = helper.make_node(
+                "GatherBlockQuantized",
+                inputs=[qw_name, indices_name, scales_name, zp_name],
+                outputs=node.output,
+                name=node.name + "_Q4" if node.name else None,
+                domain="com.microsoft",
+                block_size=emb_block_size,
+                gather_axis=0,
+                quantize_axis=1,
+            )
+            emb_replacements[id(node)] = gbq_node
+
+        # Apply node replacements
+        new_nodes = []
+        for node in graph.node:
+            nid = id(node)
+            new_nodes.append(emb_replacements.get(nid, node))
+        del graph.node[:]
+        graph.node.extend(new_nodes)
+
+        # Remove original embedding weights, add quantized ones
+        kept_inits = [i for i in graph.initializer if i.name not in emb_weights_to_remove]
+        del graph.initializer[:]
+        graph.initializer.extend(kept_inits)
+        graph.initializer.extend(emb_new_inits)
+
+        print(f"  Quantized {len(quantized_embeddings)} embedding weights, "
+              f"replaced {len(emb_replacements)} Gather nodes", flush=True)
+
+    # Add com.microsoft opset import for MatMulNBits / GatherBlockQuantized
     has_ms_domain = any(opi.domain == "com.microsoft" for opi in model.opset_import)
     if not has_ms_domain:
         model.opset_import.append(
