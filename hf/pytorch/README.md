@@ -16,7 +16,6 @@ pipeline_tag: text-to-speech
 datasets:
   - mozilla-foundation/common_voice_17_0
   - language-and-voice-lab/hitz_aholab_eu_tts
-extra_gated_prompt: false
 ---
 
 # zortzi-tts

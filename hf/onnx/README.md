@@ -39,8 +39,6 @@ Two voices: **Maider** (female) and **Antton** (male).
 ├── slow_ar_fp16.onnx (+ .data)         # Slow AR, FP16 (1077 MB) — optional, higher fidelity
 ├── fast_ar_fp16.onnx (+ .data)         # Fast AR, FP16 (134 MB) — optional, higher fidelity
 ├── codec_decoder_fp16.onnx             # codes → audio (266 MB)
-├── registration/
-│   └── codec_encoder_fp16.onnx         # audio → codes (voice registration only)
 ├── voices/
 │   ├── maider/{codes.npy, meta.json}   # Maider reference voice codes
 │   └── antton/{codes.npy, meta.json}   # Antton reference voice codes
