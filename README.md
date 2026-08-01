@@ -36,6 +36,7 @@ See [`RESEARCH.md`](RESEARCH.md) for the full feasibility analysis.
 - [Manifest CLI](#manifest-cli)
 - [Manifest schema](#manifest-schema)
 - [Layout](#layout)
+- [Known Issues](#known-issues)
 - [Datasets, Licenses & Acknowledgements](#datasets-licenses--acknowledgements)
 
 ---
@@ -391,19 +392,19 @@ matching** Audio8's official INT4 release.
 
 ## The text normalizer
 
-The centerpiece. Basque uses a vigesimal (base-20) number system, so digit
-expansion is non-trivial (`2026` → `bi mila eta hogeita sei`).
+`basque_manifest/normalize.py` cleans text before it enters the manifest
+(whitespace collapsing, punctuation, symbol expansion). It is applied when
+building training manifests so transcripts are consistent.
 
 ```python
 from basque_manifest import normalize_text
 
-normalize_text("2026an 3,14€ ordaindu zuen %20ean.")
-# -> "bi mila eta hogeita seian hiru koma bat lau euro ordaindu zuen ehuneko hogeian."
+normalize_text("Kaixo  mundua!")
+# -> "Kaixo mundua!"
 ```
 
-Number tables are cross-checked against the Euskaltzaindia standard / Omniglot.
-The exact forms of 17–19 and the multi-group `eta` placement still want a
-native-speaker audit — see TODOs in `basque_manifest/normalize.py`.
+Numeral-expansion rules exist but the model does not pronounce them reliably
+in Basque — see [Known Issues](#known-issues).
 
 ## Manifest CLI
 
@@ -475,7 +476,7 @@ directory; absolute paths are used by default.
 
 ```
 basque_manifest/
-  normalize.py          Basque text + vigesimal number normalization
+  normalize.py          Basque text normalization
   records.py            Record / Source dataclasses, shared I/O
   audio.py              optional ffprobe-based duration probing
   builder.py            normalize -> filter -> write JSONL
@@ -499,9 +500,16 @@ scripts/
   deepspeed_zero2.json  DeepSpeed ZeRO-2 config (not in upstream repo)
   setup_env.sh          GPU server venv bootstrap
 tests/
-  test_normalize.py     number + normalization tests (65)
+  test_normalize.py     normalization tests (65)
   test_builder.py       builder + merge + pair-references tests (14)
 ```
+
+## Known Issues
+
+- **Numerals are not pronounced in Basque.** Even with text normalization
+  (digits expanded to Basque words), the model speaks numbers in a mix of
+  languages rather than Basque. Spell out numbers manually if correct
+  pronunciation is required.
 
 ## Datasets, Licences & Acknowledgements
 
