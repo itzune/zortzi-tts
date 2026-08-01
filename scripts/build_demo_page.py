@@ -36,7 +36,7 @@ def median_rtf(samples: list[dict]) -> float:
 
 # ── Sentence definitions (corrected Basque) ─────────────────────────────
 SENTENCES = [
-    {"id": "s1", "type": "Greeting",        "eu": "Kaixo, egun on guztioi.",                     "en": "Hello, good morning everyone."},
+    {"id": "s1", "type": "Greeting",        "eu": "Egun on guztioi.",                              "en": "Good morning everyone."},
     {"id": "s2", "type": "Wh-question",     "eu": "Nondik zatoz zu?",                             "en": "Where do you come from?"},
     {"id": "s3", "type": "Yes/no question", "eu": "Ba al dakizu euskaraz hitz egiten?",           "en": "Do you know how to speak Basque?"},
     {"id": "s4", "type": "Exclamation",     "eu": "Zein polita dagoen gaur eguzkia!",             "en": "How beautiful the sun is today!"},
@@ -59,6 +59,8 @@ MODELS = [
         "hardware": "NVIDIA L40",
         "realtime": True,
         "voice_method": "Reference clip",
+        "voice_cloning": True,
+        "streaming": False,
         "license": "Apache 2.0",
         "hf_url": "https://huggingface.co/itzune/zortzi-tts",
     },
@@ -75,6 +77,8 @@ MODELS = [
         "hardware": "CPU (8-core)",
         "realtime": False,
         "voice_method": "Reference clip",
+        "voice_cloning": True,
+        "streaming": True,
         "license": "Apache 2.0",
         "hf_url": "https://huggingface.co/itzune/zortzi-tts-onnx",
     },
@@ -91,6 +95,8 @@ MODELS = [
         "hardware": "CPU (8-core)",
         "realtime": False,
         "voice_method": "Reference clip",
+        "voice_cloning": True,
+        "streaming": True,
         "license": "Apache 2.0",
         "hf_url": "https://huggingface.co/itzune/zortzi-tts-onnx",
     },
@@ -107,6 +113,8 @@ MODELS = [
         "hardware": "CPU (8-core)",
         "realtime": True,
         "voice_method": "Per-voice model",
+        "voice_cloning": False,
+        "streaming": True,
         "license": "MIT",
         "hf_url": "https://huggingface.co/itzune/maider-tts",
     },
@@ -447,8 +455,9 @@ def generate_stats_table() -> str:
         ("Precision", "precision"),
         ("Sample rate", "sample_rate"),
         ("Median RTF", "rtf"),
-        ("Hardware", "hardware"),
         ("Real-time", "realtime"),
+        ("Voice cloning", "voice_cloning"),
+        ("Streaming", "streaming"),
         ("Voice method", "voice_method"),
         ("License", "license"),
     ]
@@ -457,7 +466,7 @@ def generate_stats_table() -> str:
         cells = f'<td class="metric">{label}</td>'
         for m in MODELS:
             val = m[key]
-            if key == "realtime":
+            if key in ("realtime", "voice_cloning", "streaming"):
                 val = '<span class="yes">Yes</span>' if val else '<span class="no">No</span>'
             highlight = " col-highlight" if m["id"] == "pytorch" else ""
             cells += f'<td class="{highlight.strip()}">{val}</td>'

@@ -17,7 +17,7 @@ OUT = Path(__file__).resolve().parent.parent / "probes" / "demo_piper"
 OUT.mkdir(parents=True, exist_ok=True)
 
 SENTENCES = [
-    ("s1", "Kaixo, egun on guztioi."),
+    ("s1", "Egun on guztioi."),
     ("s2", "Nondik zatoz zu?"),
     ("s3", "Ba al dakizu euskaraz hitz egiten?"),
     ("s4", "Zein polita dagoen gaur eguzkia!"),
@@ -26,7 +26,7 @@ SENTENCES = [
 ]
 
 # Only regenerate changed sentences (empty = all)
-ONLY = []
+ONLY = ["s1"]
 if ONLY:
     SENTENCES = [(s, t) for s, t in SENTENCES if s in ONLY]
 
