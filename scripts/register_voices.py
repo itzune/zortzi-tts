@@ -3,10 +3,14 @@
 
 Uses the ONNX codec encoder to convert reference audio clips to codec codes,
 then saves them in the VoiceStore format (codes.npy + meta.json).
+
+Usage:
+    python register_voices.py --model-dir /path/to/onnx --voices-dir /path/to/voices
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import sys
@@ -31,7 +35,7 @@ VOICES = {
     ),
 }
 
-MODEL_DIR = Path("/root/work/outputs/onnx_p2_3k")
+MODEL_DIR = Path("/root/work/outputs/onnx_p2_final")
 VOICES_DIR = Path("/root/work/voices")
 ENCODER_PATH = MODEL_DIR / "registration" / "codec_encoder_fp16.onnx"
 REG_MANIFEST_PATH = MODEL_DIR / "registration" / "registration_manifest.json"
@@ -104,6 +108,20 @@ def register_voice(name: str, audio_path: str, reference_text: str, fingerprint:
 
 
 def main():
+    global MODEL_DIR, VOICES_DIR, ENCODER_PATH, REG_MANIFEST_PATH, RUNTIME_MANIFEST_PATH
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--model-dir", type=Path, default=MODEL_DIR,
+                    help="ONNX model directory (default: %(default)s)")
+    ap.add_argument("--voices-dir", type=Path, default=VOICES_DIR,
+                    help="Output voices directory (default: %(default)s)")
+    args = ap.parse_args()
+
+    MODEL_DIR = args.model_dir
+    VOICES_DIR = args.voices_dir
+    ENCODER_PATH = MODEL_DIR / "registration" / "codec_encoder_fp16.onnx"
+    REG_MANIFEST_PATH = MODEL_DIR / "registration" / "registration_manifest.json"
+    RUNTIME_MANIFEST_PATH = MODEL_DIR / "runtime_manifest.json"
+
     runtime_manifest = json.loads(RUNTIME_MANIFEST_PATH.read_text())
     fingerprint = runtime_manifest["model_fingerprint"]
 
