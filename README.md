@@ -149,6 +149,10 @@ The available precisions are declared in `runtime_manifest.json`
 (`available_precisions`). ONNX Runtime upcasts FP16 → FP32 internally for
 computation, so FP16 is a storage-only optimization on CPU.
 
+> **Note:** INT4 quantization can degrade output quality (flatter prosody,
+> less reliable question intonation) compared to FP16. Prefer FP16 when
+> fidelity matters; use INT4 when size or CPU speed is the priority.
+
 ### CPU inference speed
 
 On an 8-core CPU, a ~3s Basque utterance synthesizes in:
