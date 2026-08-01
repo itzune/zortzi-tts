@@ -11,6 +11,15 @@ that runs on CPU with the Audio8 ONNX runtime.
 > [HiTZ-Aholab](https://zenodo.org/records/17952596) speakers via reference
 > clips; no other voices are registered.
 
+## 🎧 Demo
+
+A live audio demo with side-by-side comparisons of all four deployment targets
+(PyTorch GPU, ONNX FP16, ONNX INT4, and Piper) is published at:
+
+**<https://itzune.eus/zortzi-tts/>**
+
+---
+
 ## Why this exists
 
 Audio8_TTS performs **no** language-specific text normalization. The only
