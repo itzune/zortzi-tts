@@ -20,13 +20,18 @@ OUT = Path("/root/work/demo_samples")
 OUT.mkdir(parents=True, exist_ok=True)
 
 SENTENCES = [
-    ("s1", "Kaixo, ona goiza denoi."),
+    ("s1", "Kaixo, egun on guztioi."),
     ("s2", "Nondik zatoz zu?"),
     ("s3", "Ba al dakizu euskaraz hitz egiten?"),
-    ("s4", "Zein polita dago gaur eguzkia!"),
+    ("s4", "Zein polita dagoen gaur eguzkia!"),
     ("s5", "Euskara Europako hizkuntzarik zaharrenetako bat da, eta milaka urteko historia du."),
-    ("s6", "Atzo Bilbora joan nintzen, eta zu non bizi zara?"),
+    ("s6", "Ni Bilbon bizi naiz, eta zu non bizi zara?"),
 ]
+
+# Only regenerate changed sentences (empty = all)
+ONLY = []
+if ONLY:
+    SENTENCES = [(s, t) for s, t in SENTENCES if s in ONLY]
 
 VOICES = {
     "maider": {

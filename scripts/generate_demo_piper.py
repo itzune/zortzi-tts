@@ -12,20 +12,23 @@ import time
 import wave
 from pathlib import Path
 
-import soundfile as sf
-
 PIPER_DIR = Path(__file__).resolve().parent.parent / "piper_models"
 OUT = Path(__file__).resolve().parent.parent / "probes" / "demo_piper"
 OUT.mkdir(parents=True, exist_ok=True)
 
 SENTENCES = [
-    ("s1", "Kaixo, ona goiza denoi."),
+    ("s1", "Kaixo, egun on guztioi."),
     ("s2", "Nondik zatoz zu?"),
     ("s3", "Ba al dakizu euskaraz hitz egiten?"),
-    ("s4", "Zein polita dago gaur eguzkia!"),
+    ("s4", "Zein polita dagoen gaur eguzkia!"),
     ("s5", "Euskara Europako hizkuntzarik zaharrenetako bat da, eta milaka urteko historia du."),
-    ("s6", "Atzo Bilbora joan nintzen, eta zu non bizi zara?"),
+    ("s6", "Ni Bilbon bizi naiz, eta zu non bizi zara?"),
 ]
+
+# Only regenerate changed sentences (empty = all)
+ONLY = []
+if ONLY:
+    SENTENCES = [(s, t) for s, t in SENTENCES if s in ONLY]
 
 MODELS = {
     "maider": str(PIPER_DIR / "eu-maider-medium.onnx"),
@@ -61,8 +64,10 @@ def main() -> None:
                 voice.synthesize_wav(text, wav_file)
             t2 = time.time()
 
-            info = sf.info(str(out_path))
-            audio_dur = info.duration
+            with wave.open(str(out_path), "rb") as wf:
+                n_frames = wf.getnframes()
+                sample_rate = wf.getframerate()
+            audio_dur = n_frames / sample_rate
             infer_time = t2 - t1
             rtf = infer_time / audio_dur if audio_dur > 0 else float("inf")
 
@@ -74,7 +79,7 @@ def main() -> None:
                 "inference_time_s": round(infer_time, 3),
                 "audio_duration_s": round(audio_dur, 3),
                 "rtf": round(rtf, 3),
-                "sample_rate": info.samplerate,
+                "sample_rate": sample_rate,
             })
             print(f"    {infer_time:.3f}s → {audio_dur:.2f}s  RTF={rtf:.3f}")
 
