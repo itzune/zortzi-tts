@@ -129,12 +129,11 @@ quantization step (see [below](#int4-quantization)) reduces the AR models
 
 | Model | FP16 | INT4 | Notes |
 |-------|------|------|-------|
-| Slow AR | 1077 MB | 517 MB | 121 `MatMulNBits` nodes (matches official Audio8 INT4) |
-| Fast AR | 134 MB | 39 MB | 21 `MatMulNBits` nodes |
+| Slow AR | 1077 MB | 278 MB | 121 `MatMulNBits` + 11 `GatherBlockQuantized` (embeddings) |
+| Fast AR | 134 MB | 34 MB | 21 `MatMulNBits` + 1 `GatherBlockQuantized` |
 | Codec decoder | 266 MB | 266 MB | not quantized (Conv1d-based) |
 | Codec encoder | 421 MB | 421 MB | not quantized (registration only) |
-| **Inference total** | **1477 MB** | **821 MB** | |
-| Official Audio8 INT4 | — | 572 MB | also quantizes embeddings via `GatherBlockQuantized` |
+| **Inference total** | **1477 MB** | **575 MB** | matches official Audio8 INT4 (572 MB) |
 
 Select precision at runtime:
 
@@ -346,12 +345,12 @@ Reduce AR model size ~2–3× and speed up CPU inference ~28%:
 
 ```bash
 .venv/bin/python /root/work/zortzi-tts/scripts/quantize_int4.py \
-    --input /root/work/outputs/onnx_p2_3k/slow_ar_fp16.onnx \
-    --output /root/work/outputs/onnx_p2_3k/slow_ar_int4.onnx
+    --input /root/work/outputs/onnx_p2_final/slow_ar_fp16.onnx \
+    --output /root/work/outputs/onnx_p2_final/slow_ar_int4.onnx
 
 .venv/bin/python /root/work/zortzi-tts/scripts/quantize_int4.py \
-    --input /root/work/outputs/onnx_p2_3k/fast_ar_fp16.onnx \
-    --output /root/work/outputs/onnx_p2_3k/fast_ar_int4.onnx
+    --input /root/work/outputs/onnx_p2_final/fast_ar_fp16.onnx \
+    --output /root/work/outputs/onnx_p2_final/fast_ar_int4.onnx
 ```
 
 Then update `runtime_manifest.json` to advertise INT4:
@@ -368,25 +367,26 @@ Then update `runtime_manifest.json` to advertise INT4:
 ONNX Runtime operators — `MatMulNBits` (com.microsoft domain, bits=4,
 block_size=128) for linear weights and `GatherBlockQuantized` for embeddings.
 These are **not** proprietary. The quantizer is
-`onnxruntime.quantization.cuda_quantizer.CudaQuantizer.matmulnbits_blockwise_quantize()`
-(works on CPU despite the name).
+`onnxruntime.quantization.cuda_quantizer.CudaQuantizer` (works on CPU despite
+the name).
 
-The script:
-1. Traces each `MatMul` → `Transpose` → weight initializer chain (skips
-   attention Q×K^T and probs×V MatMuls, which have dynamic B from the KV cache).
-2. Quantizes each `[N, K]` weight with `matmulnbits_blockwise_quantize` →
-   `qweight [N, K/128, 64]` (uint8), `scales [N, K/128]` (float16),
-   `zero_points [N, ceil(K/128/2)]` (uint8, pre-packed 4-bit).
-3. Replaces `Transpose + MatMul` with a single `MatMulNBits` node in the
-   `com.microsoft` domain.
+The script runs two passes:
+1. **Linear weights** — traces each `MatMul` → `Transpose` → weight
+   initializer chain (skips attention Q×K^T and probs×V MatMuls, which have
+   dynamic B from the KV cache). Quantizes each `[N, K]` weight with
+   `matmulnbits_blockwise_quantize` → `qweight [N, K/128, 64]` (uint8),
+   `scales [N, K/128]` (float16), `zero_points [N, ceil(K/128/2)]` (uint8,
+   pre-packed 4-bit). Replaces `Transpose + MatMul` with a single `MatMulNBits`
+   node. Produces 121 `MatMulNBits` nodes (slow AR) and 21 (fast AR).
+2. **Embedding tables** — finds `Gather` nodes whose first input is a 2D float
+   initializer with "embedding" in its name. Quantizes each `[vocab, dim]`
+   table with `symmetric_blockwise_quantize` (block_size=32) → packed INT4
+   `Q4` tensor, FP16 `scales`, INT4 `zero_points`. Replaces `Gather` with
+   `GatherBlockQuantized` in the `com.microsoft` domain. Produces 11 nodes
+   (slow AR) and 1 (fast AR).
 
-Produces 121 `MatMulNBits` nodes (slow AR) and 21 (fast AR) — **exactly
-matching** Audio8's official INT4 release.
-
-> **Embeddings not yet quantized.** Audio8 also quantizes embedding tables via
-> `GatherBlockQuantized` (11 nodes), which would reduce the slow AR from
-> 517 MB → ~290 MB. This is a future optimization; `quantize_int4.py` does not
-> yet handle embeddings.
+This matches Audio8's official INT4 format exactly: total inference size
+575 MB vs official 572 MB.
 
 ---
 
@@ -486,7 +486,7 @@ basque_manifest/
   cli.py                argparse subcommands
 scripts/
   export_onnx.py        PyTorch → ONNX export (FP16, custom wrappers)
-  quantize_int4.py      ONNX FP16 → INT4 (MatMulNBits, com.microsoft)
+  quantize_int4.py      ONNX FP16 → INT4 (MatMulNBits + GatherBlockQuantized)
   register_voices.py    encode reference clips → VoiceStore (maider, antton)
   launch_cv_base.sh     Phase 1 training launcher (CV 26.0)
   launch_anchor.sh      Phase 2 training launcher (HiTZ upsampled)
