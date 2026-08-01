@@ -58,8 +58,6 @@ MODELS = [
         "rtf": f"{median_rtf(pytorch_samples):.2f}",
         "hardware": "NVIDIA L40",
         "realtime": True,
-        "voice_method": "Reference clip",
-        "voice_cloning": True,
         "streaming": False,
         "license": "Apache 2.0",
         "hf_url": "https://huggingface.co/itzune/zortzi-tts",
@@ -76,8 +74,6 @@ MODELS = [
         "rtf": f"{median_rtf(onnx_fp16_samples):.1f}",
         "hardware": "CPU (8-core)",
         "realtime": False,
-        "voice_method": "Reference clip",
-        "voice_cloning": True,
         "streaming": True,
         "license": "Apache 2.0",
         "hf_url": "https://huggingface.co/itzune/zortzi-tts-onnx",
@@ -94,8 +90,6 @@ MODELS = [
         "rtf": f"{median_rtf(onnx_int4_samples):.1f}",
         "hardware": "CPU (8-core)",
         "realtime": False,
-        "voice_method": "Reference clip",
-        "voice_cloning": True,
         "streaming": True,
         "license": "Apache 2.0",
         "hf_url": "https://huggingface.co/itzune/zortzi-tts-onnx",
@@ -112,8 +106,6 @@ MODELS = [
         "rtf": f"{median_rtf(piper_samples):.2f}",
         "hardware": "CPU (8-core)",
         "realtime": True,
-        "voice_method": "Per-voice model",
-        "voice_cloning": False,
         "streaming": True,
         "license": "MIT",
         "hf_url": "https://huggingface.co/itzune/maider-tts",
@@ -456,9 +448,7 @@ def generate_stats_table() -> str:
         ("Sample rate", "sample_rate"),
         ("Median RTF", "rtf"),
         ("Real-time", "realtime"),
-        ("Voice cloning", "voice_cloning"),
         ("Streaming", "streaming"),
-        ("Voice method", "voice_method"),
         ("License", "license"),
     ]
     rows = ""
@@ -466,7 +456,7 @@ def generate_stats_table() -> str:
         cells = f'<td class="metric">{label}</td>'
         for m in MODELS:
             val = m[key]
-            if key in ("realtime", "voice_cloning", "streaming"):
+            if key in ("realtime", "streaming"):
                 val = '<span class="yes">Yes</span>' if val else '<span class="no">No</span>'
             highlight = " col-highlight" if m["id"] == "pytorch" else ""
             cells += f'<td class="{highlight.strip()}">{val}</td>'
@@ -586,6 +576,13 @@ def generate_html() -> str:
     on yes/no questions, focal pitch peaks on wh-question words, and expressive exclamatory contours.
     This page compares four deployment configurations: the PyTorch model (GPU), ONNX FP16 and INT4
     exports (CPU), and Piper TTS (a lightweight VITS baseline trained on the same voices).
+  </p>
+  <p>
+    The base Audio8-TTS-0.6B model supports zero-shot voice cloning from arbitrary reference clips.
+    This fine-tuned version <strong>suppresses that capability</strong>: the voice-cloning pathway
+    has collapsed to the two training speakers during Phase 2 fine-tuning. The released model speaks
+    <strong>only</strong> Basque with the <strong>Maider</strong> and <strong>Antton</strong> voices
+    — no other voices can be produced.
   </p>
 </section>
 

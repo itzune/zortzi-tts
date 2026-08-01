@@ -370,6 +370,13 @@ footer p { font-size: .8rem; color: var(--mist); opacity: .6; }
     This page compares four deployment configurations: the PyTorch model (GPU), ONNX FP16 and INT4
     exports (CPU), and Piper TTS (a lightweight VITS baseline trained on the same voices).
   </p>
+  <p>
+    The base Audio8-TTS-0.6B model supports zero-shot voice cloning from arbitrary reference clips.
+    This fine-tuned version <strong>suppresses that capability</strong>: the voice-cloning pathway
+    has collapsed to the two training speakers during Phase 2 fine-tuning. The released model speaks
+    <strong>only</strong> Basque with the <strong>Maider</strong> and <strong>Antton</strong> voices
+    — no other voices can be produced.
+  </p>
 </section>
 
 <!-- ═══ Model Comparison ═══ -->
@@ -391,9 +398,7 @@ footer p { font-size: .8rem; color: var(--mist); opacity: .6; }
 <tr><td class="metric">Sample rate</td><td class="col-highlight">44.1 kHz</td><td class="">44.1 kHz</td><td class="">44.1 kHz</td><td class="">22.05 kHz</td></tr>
 <tr><td class="metric">Median RTF</td><td class="col-highlight">0.94</td><td class="">5.3</td><td class="">4.5</td><td class="">0.06</td></tr>
 <tr><td class="metric">Real-time</td><td class="col-highlight"><span class="yes">Yes</span></td><td class=""><span class="no">No</span></td><td class=""><span class="no">No</span></td><td class=""><span class="yes">Yes</span></td></tr>
-<tr><td class="metric">Voice cloning</td><td class="col-highlight"><span class="yes">Yes</span></td><td class=""><span class="yes">Yes</span></td><td class=""><span class="yes">Yes</span></td><td class=""><span class="no">No</span></td></tr>
 <tr><td class="metric">Streaming</td><td class="col-highlight"><span class="no">No</span></td><td class=""><span class="yes">Yes</span></td><td class=""><span class="yes">Yes</span></td><td class=""><span class="yes">Yes</span></td></tr>
-<tr><td class="metric">Voice method</td><td class="col-highlight">Reference clip</td><td class="">Reference clip</td><td class="">Reference clip</td><td class="">Per-voice model</td></tr>
 <tr><td class="metric">License</td><td class="col-highlight">Apache 2.0</td><td class="">Apache 2.0</td><td class="">Apache 2.0</td><td class="">MIT</td></tr>
 
   </tbody>
